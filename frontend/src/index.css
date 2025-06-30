@@ -1,0 +1,67 @@
+/* stylelint-disable at-rule-no-unknown */
+/* stylelint-disable-next-line at-rule-no-unknown */
+@tailwind base;
+/* stylelint-disable-next-line at-rule-no-unknown */
+@tailwind components;
+/* stylelint-disable-next-line at-rule-no-unknown */
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* Estilos para impresión de facturas */
+@media print {
+  /* Ocultar elementos que no deben aparecer en la impresión */
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  /* Asegurar que la factura ocupe toda la página */
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+  
+  /* Estilos específicos para la factura */
+  .invoice-print {
+    page-break-inside: avoid;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  /* Asegurar que las tablas no se rompan entre páginas */
+  table {
+    page-break-inside: avoid;
+  }
+  
+  /* Asegurar que los totales estén juntos */
+  .invoice-totals {
+    page-break-inside: avoid;
+  }
+  
+  /* Ocultar el modal y mostrar solo el contenido de la factura */
+  .modal-overlay {
+    position: static !important;
+    background: white !important;
+  }
+  
+  .modal-content {
+    position: static !important;
+    max-width: none !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+} 

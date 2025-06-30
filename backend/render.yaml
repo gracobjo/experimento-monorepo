@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: experimento-backend
+    env: node
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: experimento-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: FRONTEND_URL
+        value: https://experimento-frontend.onrender.com
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: UPLOAD_PATH
+        value: ./uploads
+
+databases:
+  - name: experimento-postgres
+    databaseName: experimento_db
+    user: experimento_user 

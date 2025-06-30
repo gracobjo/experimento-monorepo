@@ -1,0 +1,335 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String        @id @default(uuid())
+  name                 String
+  email                String        @unique
+  password             String
+  role                 Role
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  appointmentsAsLawyer Appointment[]
+  client               Client?
+  documents            Document[]    @relation("UserDocuments")
+  expedientesAsLawyer  Expediente[]  @relation("LawyerExpedientes")
+  lawyer               Lawyer?
+  receivedMessages     ChatMessage[] @relation("ReceivedMessages")
+  sentMessages         ChatMessage[] @relation("SentMessages")
+  assignedTasks        Task[]        @relation("AssignedTasks")
+  createdTasks         Task[]        @relation("CreatedTasks")
+  facturasEmitidas     Invoice[]     @relation("EmisorFacturas")
+  facturasRecibidas    Invoice[]     @relation("ReceptorFacturas")
+  layouts              Layout[]
+  teleassistanceSessions TeleassistanceSession[] @relation("UserTeleassistanceSessions")
+  assistantSessions    TeleassistanceSession[] @relation("AssistantTeleassistanceSessions")
+  teleassistanceMessages TeleassistanceMessage[]
+}
+
+model Client {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  dni          String        @unique
+  phone        String?
+  address      String?
+  createdAt    DateTime      @default(now())
+  appointments Appointment[]
+  user         User          @relation(fields: [userId], references: [id])
+  expedientes  Expediente[]
+  tasks        Task[]
+  provisionFondos ProvisionFondos[]
+}
+
+model Lawyer {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  colegiado String   @unique
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Expediente {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  status      Status
+  clientId    String
+  lawyerId    String
+  createdAt   DateTime   @default(now())
+  documents   Document[]
+  client      Client     @relation(fields: [clientId], references: [id])
+  lawyer      User       @relation("LawyerExpedientes", fields: [lawyerId], references: [id])
+  tasks       Task[]
+  facturas    Invoice[]
+  provisionFondos ProvisionFondos[]
+}
+
+model Document {
+  id             String     @id @default(uuid())
+  expedienteId   String
+  filename       String
+  fileUrl        String
+  uploadedAt     DateTime   @default(now())
+  description    String?
+  fileSize       Int
+  mimeType       String
+  originalName   String
+  uploadedBy     String
+  expediente     Expediente @relation(fields: [expedienteId], references: [id])
+  uploadedByUser User       @relation("UserDocuments", fields: [uploadedBy], references: [id])
+}
+
+model Appointment {
+  id       String   @id @default(uuid())
+  clientId String
+  lawyerId String
+  date     DateTime
+  location String?
+  notes    String?
+  client   Client   @relation(fields: [clientId], references: [id])
+  lawyer   User     @relation(fields: [lawyerId], references: [id])
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  content    String
+  senderId   String
+  receiverId String
+  createdAt  DateTime @default(now())
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model ChatBotMessage {
+  id        String   @id @default(uuid())
+  sender    Sender
+  sessionId String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("chat_bot_messages")
+}
+
+model Task {
+  id             String      @id @default(uuid())
+  title          String
+  description    String?
+  dueDate        DateTime?
+  priority       String      @default("MEDIA")
+  status         String      @default("PENDIENTE")
+  expedienteId   String?
+  clientId       String?
+  assignedTo     String?
+  createdBy      String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  assignedToUser User?       @relation("AssignedTasks", fields: [assignedTo], references: [id])
+  client         Client?     @relation(fields: [clientId], references: [id])
+  createdByUser  User        @relation("CreatedTasks", fields: [createdBy], references: [id], onDelete: Cascade)
+  expediente     Expediente? @relation(fields: [expedienteId], references: [id])
+
+  @@map("tasks")
+}
+
+model Parametro {
+  id        String   @id @default(uuid())
+  clave     String   @unique
+  valor     String
+  etiqueta  String
+  tipo      String   // 'string', 'number', 'email', 'image', etc.
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  ABOGADO
+  CLIENTE
+}
+
+enum Status {
+  ABIERTO
+  EN_PROCESO
+  CERRADO
+}
+
+enum Sender {
+  USER
+  BOT
+}
+
+model Invoice {
+  id                String        @id @default(uuid())
+  numeroFactura     String        @unique
+  fechaFactura      DateTime
+  tipoFactura       String        // F=Completa, R=Rectificativa
+  emisorId          String        // User (abogado/despacho)
+  receptorId        String        // User (cliente)
+  expedienteId      String?       // Relación opcional con Expediente
+  importeTotal      Float
+  baseImponible     Float
+  cuotaIVA          Float
+  tipoIVA           Float
+  descuento         Float?        // Porcentaje de descuento
+  retencion         Float?        // Porcentaje de retención
+  aplicarIVA        Boolean       @default(true) // Si se debe aplicar IVA
+  regimenIvaEmisor  String
+  claveOperacion    String        // Por defecto '01'
+  metodoPago        String
+  fechaOperacion    DateTime
+  xml               String?       // XML Facturae generado
+  xmlFirmado        String?       // XML firmado digitalmente
+  estado            String        // borrador, emitida, enviada, aceptada, rechazada, anulada
+  motivoAnulacion    String?       // Motivo de anulación (nullable)
+  selloTiempo       DateTime?     // Sello de tiempo TSA
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  emisor            User          @relation("EmisorFacturas", fields: [emisorId], references: [id])
+  receptor          User          @relation("ReceptorFacturas", fields: [receptorId], references: [id])
+  expediente        Expediente?   @relation(fields: [expedienteId], references: [id])
+  items             InvoiceItem[]
+  provisionFondos    ProvisionFondos[]
+}
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Int
+  unitPrice   Float
+  total       Float
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+}
+
+model ProvisionFondos {
+  id           String     @id @default(uuid())
+  clientId     String
+  expedienteId String?
+  invoiceId    String?
+  amount       Float
+  date         DateTime   @default(now())
+  description  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  client       Client     @relation(fields: [clientId], references: [id])
+  expediente   Expediente? @relation(fields: [expedienteId], references: [id])
+  invoice      Invoice?   @relation(fields: [invoiceId], references: [id])
+}
+
+model Layout {
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   @unique // 'home', 'about', etc.
+  components    Json     // Array de componentes serializado
+  version       Int      @default(1)
+  isActive      Boolean  @default(false)
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdByUser User     @relation(fields: [createdBy], references: [id])
+
+  @@map("layouts")
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  nombre    String
+  email     String
+  telefono  String?
+  asunto    String
+  mensaje   String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Configuración de menús y elementos del sitio
+model MenuConfig {
+  id          String   @id @default(uuid())
+  name        String   // 'main-nav', 'sidebar-admin', 'sidebar-lawyer', 'sidebar-client'
+  role        Role     // Para qué rol es el menú
+  orientation String   @default("horizontal") // 'horizontal', 'vertical'
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       MenuItem[]
+}
+
+model MenuItem {
+  id          String     @id @default(uuid())
+  menuConfigId String
+  label       String     // Texto visible del enlace
+  url         String     // URL de destino
+  icon        String?    // Icono (emoji o clase CSS)
+  order       Int        @default(0)
+  isVisible   Boolean    @default(true)
+  isExternal  Boolean    @default(false) // Si es enlace externo
+  parentId    String?    // Para submenús
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  menuConfig  MenuConfig @relation(fields: [menuConfigId], references: [id], onDelete: Cascade)
+  parent      MenuItem?  @relation("MenuItemParent", fields: [parentId], references: [id])
+  children    MenuItem[] @relation("MenuItemParent")
+}
+
+model SiteConfig {
+  id          String   @id @default(uuid())
+  key         String   @unique // 'site_name', 'logo_url', 'favicon_url', 'primary_color', etc.
+  value       String
+  type        String   @default("string") // 'string', 'image', 'color', 'boolean', 'json'
+  category    String   @default("general") // 'branding', 'layout', 'contact', 'social'
+  description String?
+  isPublic    Boolean  @default(false) // Si se puede acceder sin autenticación
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TeleassistanceSession {
+  id          String   @id @default(cuid())
+  userId      String
+  assistantId String
+  issueType   String   // AUTOFIRMA, CERTIFICADO_DIGITAL, SEDES, etc.
+  description String
+  remoteTool  String?  // REMOTELY_ANYWHERE, TEAMVIEWER, etc.
+  status      String   @default("PENDING") // PENDING, ACTIVE, COMPLETED, CANCELLED
+  sessionCode String   @unique
+  resolution  String?
+  notes       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  duration    Int?     // duración en minutos
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User @relation("UserTeleassistanceSessions", fields: [userId], references: [id])
+  assistant User @relation("AssistantTeleassistanceSessions", fields: [assistantId], references: [id])
+  messages  TeleassistanceMessage[]
+
+  @@map("teleassistance_sessions")
+}
+
+model TeleassistanceMessage {
+  id          String   @id @default(cuid())
+  sessionId   String
+  senderId    String
+  content     String
+  messageType String   @default("TEXT") // TEXT, INSTRUCTION, SYSTEM
+  createdAt   DateTime @default(now())
+
+  session TeleassistanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sender  User                   @relation(fields: [senderId], references: [id])
+
+  @@map("teleassistance_messages")
+}
