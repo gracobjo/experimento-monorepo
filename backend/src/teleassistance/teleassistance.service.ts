@@ -529,18 +529,21 @@ export class TeleassistanceService {
       where: {
         role: {
           in: ['ADMIN', 'ABOGADO']
-        },
-        isActive: true
+        }
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        profile: {
+        lawyer: {
           select: {
-            phone: true,
-            specialization: true
+            phone: true
+          }
+        },
+        client: {
+          select: {
+            phone: true
           }
         }
       },
@@ -554,8 +557,7 @@ export class TeleassistanceService {
       name: assistant.name,
       email: assistant.email,
       role: assistant.role,
-      phone: assistant.profile?.phone,
-      specialization: assistant.profile?.specialization,
+      phone: assistant.lawyer?.phone || assistant.client?.phone || null,
       isAvailable: true // Por defecto todos están disponibles
     }));
   }
